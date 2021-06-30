@@ -1556,6 +1556,3 @@ This is the end of our Advanced Encryption Standard Implementation, all
 that is left is to take our finished AES functions and use them inside a
 `block cipher modes of operation <tutorial.php?id=3>`__ to be able to
 encrypt/decrypt messages of any size.
-
-.. |AES add roundkey operation| image:: /web/20090620003645im_/http://www.progressive-coding.com/images/tutorials/AES/addRoundKey.jpg
-.. |AES shift rows operation| image:: /web/20090620003645im_/http://www.progressive-coding.com/images/tutorials/AES/shiftRows.jpg
