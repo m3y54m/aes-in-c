@@ -6,21 +6,21 @@ Based on the tutorial in https://cboard.cprogramming.com/c-programming/87805-[tu
 Note that this is not a highly optimized and secure implementation of AES. It is only 
 written to teach the basics of this algorithm.
 
-1. `Introduction to cryptography <#introduction>`__
+1. `Introduction to cryptography <#introduction-to-cryptography>`__
 2. `Introduction to the Advanced Encryption
-   Standard <#aes-introduction>`__
-3. `Description of the AES algorithm <#aes-description>`__
+   Standard <#introduction-to-the-advanced-encryption-standard>`__
+3. `Description of the AES algorithm <#description-of-the-advanced-encryption-standard-algorithm>`__
 4. `AES operations: SubBytes, ShiftRow, MixColumn and
-   AddRoundKey <#aes-operations>`__
-5. `The Rijndael Key Schedule <#aes-key-schedule>`__
-6. `The Key Expansion <#aes-key-expansion>`__
+   AddRoundKey <#aes-operations-subbytes-shiftrow-mixcolumn-and-addroundkey>`__
+5. `The Rijndael Key Schedule <#the-rijndael-key-schedule>`__
+6. `The Key Expansion <#the-key-expansion>`__
 7. `Implementation: The Key
-   Schedule <#aes-key-schedule-implementation>`__
-8. `Implementation: AES Encryption <#aes-encryption-implementation>`__
+   Schedule <#implementation-the-key-schedule>`__
+8. `Implementation: AES Encryption <#implementation-aes-encryption>`__
 9. `AES Decryption <#aes-decryption>`__
 
 
-.. _introduction:
+.. _introduction-to-cryptography:
 
 Introduction to cryptography:
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -100,7 +100,7 @@ prohibited:
     export controls came to be seen to be an impediment to commerce and to
     research.
 
-.. _aes-introduction:
+.. _introduction-to-the-advanced-encryption-standard:
 
 Introduction to the Advanced Encryption Standard:
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -151,7 +151,7 @@ which is a series of mathematical operations that use substitutions
 definition implies that each output bit depends on every input bit.
 
 
-.. _aes-description:
+.. _description-of-the-advanced-encryption-standard-algorithm:
 
 Description of the Advanced Encryption Standard algorithm
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -233,7 +233,7 @@ Observations:
 -  The ExpandedKey shall ALWAYS be derived from the Cipher Key and never
    be specified directly.
 
-.. _aes-operations:
+.. _aes-operations-subbytes-shiftrow-mixcolumn-and-addroundkey:
 
 AES operations: SubBytes, ShiftRow, MixColumn and AddRoundKey
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -362,7 +362,7 @@ involved:
     Trenholme <http://www.samiam.org/>`__
     for writing this explanation.
 
-.. _aes-key-schedule:
+.. _the-rijndael-key-schedule:
 
 The Rijndael Key Schedule:
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -432,6 +432,8 @@ schedule core (in pseudo-C):
 
 In the above code, word has a size of 4 bytes and i is the iteration
 counter from the Key Schedule
+
+.. _the-key-expansion:
 
 The Key Expansion:
 ~~~~~~~~~~~~~~~~~~
@@ -514,6 +516,8 @@ The implementation of the key schedule is pretty straight forward, but
 since there is a lot of code repetition, it is possible to optimize the
 loop slightly and use the modulo operator to check when the additional
 operations have to be made.
+
+.. _implementation-the-key-schedule:
 
 Implementation: The Key Schedule
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -955,6 +959,9 @@ The Key Expansion of an 256-bit key consisting of null characters:
     74 ed 0b a1 73 9b 7e 25 22 51 ad 14 ce 20 d4 3b
     10 f8 0a 17 53 bf 72 9c 45 c9 79 e7 cb 70 63 85
 
+
+.. _implementation-aes-encryption:
+
 Implementation: AES Encryption
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -1295,6 +1302,8 @@ In the above code, UNKNOWN\_KEYSIZE and MEMORY\_ALLOCATION\_PROBLEM are
 macros to some predefined error codes that I can use to check if
 everything was ok. The code shouldn't be too complicated and the
 comments should be enough to understand everything.
+
+.. _aes-decryption:
 
 AES Decryption
 ~~~~~~~~~~~~~~
