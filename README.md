@@ -1,18 +1,14 @@
 # AES Implementation in C
 
-This document copeid on the tutorial in
-<https://cboard.cprogramming.com/c-programming/87805-%5Btutorial%5D-implementing-advanced-encryption-standard.html>
+This document is taken from [[Tutorial] Implementing the Advanced Encryption Standard](https://cboard.cprogramming.com/c-programming/87805-%5Btutorial%5D-implementing-advanced-encryption-standard.html)
 
-Note that this is not a highly optimized and secure implementation of
-AES. It is only written to teach the basics of this algorithm.
+**Note that this is not a highly optimized and secure implementation of
+AES. It is only written to teach the basics of this algorithm.**
 
 1.  [Introduction to cryptography](#introduction-to-cryptography)
-2.  [Introduction to the Advanced Encryption
-    Standard](#introduction-to-the-advanced-encryption-standard)
-3.  [Description of the AES
-    algorithm](#description-of-the-advanced-encryption-standard-algorithm)
-4.  [AES operations: SubBytes, ShiftRow, MixColumn and
-    AddRoundKey](#aes-operations-subbytes-shiftrow-mixcolumn-and-addroundkey)
+2.  [Introduction to the Advanced Encryption Standard](#introduction-to-the-advanced-encryption-standard)
+3.  [Description of the AES algorithm](#description-of-the-advanced-encryption-standard-algorithm)
+4.  [AES operations: SubBytes, ShiftRow, MixColumn and AddRoundKey](#aes-operations-subbytes-shiftrow-mixcolumn-and-addroundkey)
 5.  [The Rijndael Key Schedule](#the-rijndael-key-schedule)
 6.  [The Key Expansion](#the-key-expansion)
 7.  [Implementation: The Key Schedule](#implementation-the-key-schedule)
