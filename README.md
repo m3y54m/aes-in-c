@@ -1,6 +1,6 @@
 # AES Implementation in C
 
-This document is taken from [[Tutorial] Implementing the Advanced Encryption Standard](https://cboard.cprogramming.com/c-programming/87805-%5Btutorial%5D-implementing-advanced-encryption-standard.html)
+First and foremost, it should be noted that I am not the original author of this article which serves as the `README.md` document for my code. The article was originally sourced from [progressive-coding.com](http://www.progressive-coding.com/tutorial.php?id=0) which is no longer available on the web. I revised the article and rewrote it using Markdown so that anyone interested in learning the AES algorithm can access it. You can also find an older version of the article on [cboard.cprogramming.com](https://cboard.cprogramming.com/c-programming/87805-%5Btutorial%5D-implementing-advanced-encryption-standard.html).
 
 **Note that this is not a highly optimized and secure implementation of
 AES. It is only written to teach the basics of this algorithm.**
@@ -233,6 +233,10 @@ length (=16 bytes).
 where: b(i,j) = a(i,j) XOR k(i,j)
 ```
 
+A graphical representation of this operation can be seen below:
+
+![image](https://user-images.githubusercontent.com/1549028/230434978-9af17124-9009-4f62-a942-d0e77deaf4e5.png)
+
 ### The ShiftRow operation:
 
 In this operation, each row of the state is cyclically shifted to the
@@ -251,6 +255,9 @@ left, depending on the row index.
 | a3,0 | a3,1 | a3,2 | a3,3 |    | a3,3 | a3,0 | a3,1 | a3,2 |
 -----------------------------    -----------------------------
 ```
+A graphical representation of this operation can be found below:
+
+![image](https://user-images.githubusercontent.com/1549028/230435183-8306ff07-72b3-4373-b761-6a0c97255413.png)
 
 Please note that the inverse of ShiftRow is the same cyclically shift
 but this time to the right. It will be needed later for decoding.
