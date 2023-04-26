@@ -1,9 +1,6 @@
 # AES Implementation in C
 
-First and foremost, it should be noted that I am not the original author of this article which serves as the `README.md` document for my code. The article was originally sourced from [progressive-coding.com](http://www.progressive-coding.com/tutorial.php?id=0) which is no longer available on the web. I revised the article and rewrote it using Markdown so that anyone interested in learning the AES algorithm can access it. You can also find an older version of the article on [cboard.cprogramming.com](https://cboard.cprogramming.com/c-programming/87805-%5Btutorial%5D-implementing-advanced-encryption-standard.html).
-
-**Note that this is not a highly optimized and secure implementation of
-AES. It is only written to teach the basics of this algorithm.**
+This is a very simple (and **NOT a highly optimized and secure**) implementation of AES only written to teach you the **BASICS** of this algorithm. I used a tutorial previously available on [progressive-coding.com](http://www.progressive-coding.com/tutorial.php?id=0) to write the C code available in this reposistory. As you may have noticed, the link is broken and the tutorial is no longer available on the web. So I revised the article, added some comprehensive images, and rewrote it in Markdown to serve as the `README.md` of my code. However, you can still find an early version of the tutorial on [cboard.cprogramming.com](https://cboard.cprogramming.com/c-programming/87805-%5Btutorial%5D-implementing-advanced-encryption-standard.html).
 
 1.  [Introduction to cryptography](#introduction-to-cryptography)
 2.  [Introduction to the Advanced Encryption Standard](#introduction-to-the-advanced-encryption-standard)
@@ -147,6 +144,8 @@ denoted Nb). The cipher key is similarly pictured as a rectangular array
 with four rows. The number of columns of the cipher key, denoted Nk, is
 equal to the key length divided by 32.
 
+![image](https://user-images.githubusercontent.com/1549028/234524844-c4aabe3b-eab8-4897-82f6-28abf2ec1b5d.png)
+
 ``` 
 A state:
 -----------------------------
@@ -201,6 +200,8 @@ AES(state, CipherKey)
 }
 ```
 
+![image](https://user-images.githubusercontent.com/1549028/234524395-752bb3be-813c-40ff-8dd0-f0a02029d229.png)
+
 ### Observations:
 
 -   The cipher key is expanded into a larger key, which is later used
@@ -235,7 +236,7 @@ where: b(i,j) = a(i,j) XOR k(i,j)
 
 A graphical representation of this operation can be seen below:
 
-![image](https://user-images.githubusercontent.com/1549028/230434978-9af17124-9009-4f62-a942-d0e77deaf4e5.png)
+![image](https://user-images.githubusercontent.com/1549028/234528702-5610357c-50d2-4090-b8e8-0dab12024470.png)
 
 ### The ShiftRow operation:
 
@@ -257,7 +258,7 @@ left, depending on the row index.
 ```
 A graphical representation of this operation can be found below:
 
-![image](https://user-images.githubusercontent.com/1549028/230435183-8306ff07-72b3-4373-b761-6a0c97255413.png)
+![image](https://user-images.githubusercontent.com/1549028/234527634-c85f1b7b-6978-4f2e-9006-b7dec501b0e6.png)
 
 Please note that the inverse of ShiftRow is the same cyclically shift
 but this time to the right. It will be needed later for decoding.
@@ -282,6 +283,8 @@ corresponds to the value in the state:
 ```c 
 a(i,j) = SBox[a(i,j)]
 ```
+
+![image](https://user-images.githubusercontent.com/1549028/234528874-4cafa80c-01c0-4d59-a0a4-feb76e5243b2.png)
 
 Please note that the inverse of SubBytes is the same operation, using
 the inversed S-Box, which is also precalculated.
@@ -340,6 +343,8 @@ You can skip this part if you are not interested in the math involved:
 >
 > Thanks to [Sam Trenholme](http://www.samiam.org/) for writing this
 > explanation.
+
+![image](https://user-images.githubusercontent.com/1549028/234528985-b6a569ea-9ba0-4897-b803-16919738b811.png)
 
 ## The Rijndael Key Schedule:
 
@@ -465,6 +470,8 @@ Let me try to explain this in an easier understandable way:
             expandedKey
 -   We now have our expandedKey
 
+![image](https://user-images.githubusercontent.com/1549028/234530304-2cec67ef-a750-4008-b6e3-ff29a95dcdd4.png)
+
 Don't worry if you still have problems understanding the Key Schedule,
 you'll see that the implementation isn't very hard. What you should
 note is that:
@@ -532,6 +539,8 @@ values immediately from our program, I'll wrap a little function around
 which makes for a more readable code and would allow us to add
 additional code later on. Of course, this is a matter of taste, feel
 free to access the array immediately.
+
+![image](https://user-images.githubusercontent.com/1549028/234526149-a368a6c6-50d4-403e-82f1-0b1317b0e2ba.png)
 
 Here's the code for the 2 S-Boxes, it's only a table-lookup that
 returns the value in the array whose index is specified as a parameter
