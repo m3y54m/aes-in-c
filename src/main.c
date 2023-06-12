@@ -1,9 +1,11 @@
-// AES implementation in C
-// Based on the tutorial in https://cboard.cprogramming.com/c-programming/87805-[tutorial]-implementing-advanced-encryption-standard.html
-// Author: Meysam Parvizi
+/* Basic implementation of AES in C
+ *
+ * Warning: THIS CODE IS ONLY FOR LEARNING PURPOSES
+ *          NOT RECOMMENDED TO USE IT IN ANY PRODUCTS
+ */
 
 #include <stdio.h>  // for printf
-#include <stdlib.h> // for malloc
+#include <stdlib.h> // for malloc, free
 
 #define UNKNOWN_KEYSIZE 11
 #define MEMORY_ALLOCATION_PROBLEM 33
@@ -40,7 +42,6 @@ void rotate(unsigned char *word);
 
 // Implementation: Rcon
 unsigned char Rcon[255] = {
-
     0x8d, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36, 0x6c, 0xd8,
     0xab, 0x4d, 0x9a, 0x2f, 0x5e, 0xbc, 0x63, 0xc6, 0x97, 0x35, 0x6a, 0xd4, 0xb3,
     0x7d, 0xfa, 0xef, 0xc5, 0x91, 0x39, 0x72, 0xe4, 0xd3, 0xbd, 0x61, 0xc2, 0x9f,
@@ -213,16 +214,16 @@ void core(unsigned char *word, int iteration)
 {
     int i;
 
-    /* rotate the 32-bit word 8 bits to the left */
+    // rotate the 32-bit word 8 bits to the left
     rotate(word);
 
-    /* apply S-Box substitution on all 4 parts of the 32-bit word */
+    // apply S-Box substitution on all 4 parts of the 32-bit word
     for (i = 0; i < 4; ++i)
     {
         word[i] = getSBoxValue(word[i]);
     }
 
-    /* XOR the output of the rcon operation with i to the first part (leftmost) only */
+    // XOR the output of the rcon operation with i to the first part (leftmost) only
     word[0] = word[0] ^ getRconValue(iteration);
 }
 
@@ -238,20 +239,20 @@ void expandKey(unsigned char *expandedKey,
                enum keySize size,
                size_t expandedKeySize)
 {
-    /* current expanded keySize, in bytes */
+    // current expanded keySize, in bytes
     int currentSize = 0;
     int rconIteration = 1;
     int i;
     unsigned char t[4] = {0}; // temporary 4-byte variable
 
-    /* set the 16,24,32 bytes of the expanded key to the input key */
+    // set the 16,24,32 bytes of the expanded key to the input key
     for (i = 0; i < size; i++)
         expandedKey[i] = key[i];
     currentSize += size;
 
     while (currentSize < expandedKeySize)
     {
-        /* assign the previous 4 bytes to the temporary value t */
+        // assign the previous 4 bytes to the temporary value t
         for (i = 0; i < 4; i++)
         {
             t[i] = expandedKey[(currentSize - 4) + i];
@@ -265,7 +266,7 @@ void expandKey(unsigned char *expandedKey,
             core(t, rconIteration++);
         }
 
-        /* For 256-bit keys, we add an extra sbox to the calculation */
+        // For 256-bit keys, we add an extra sbox to the calculation
         if (size == SIZE_32 && ((currentSize % size) == 16))
         {
             for (i = 0; i < 4; i++)
@@ -296,7 +297,7 @@ void subBytes(unsigned char *state)
 void shiftRows(unsigned char *state)
 {
     int i;
-    /* iterate over the 4 rows and call shiftRow() with that row */
+    // iterate over the 4 rows and call shiftRow() with that row
     for (i = 0; i < 4; i++)
         shiftRow(state + i * 4, i);
 }
@@ -305,7 +306,7 @@ void shiftRow(unsigned char *state, unsigned char nbr)
 {
     int i, j;
     unsigned char tmp;
-    /* each iteration shifts the row to the left by 1 */
+    // each iteration shifts the row to the left by 1
     for (i = 0; i < nbr; i++)
     {
         tmp = state[0];
@@ -345,19 +346,19 @@ void mixColumns(unsigned char *state)
     int i, j;
     unsigned char column[4];
 
-    /* iterate over the 4 columns */
+    // iterate over the 4 columns
     for (i = 0; i < 4; i++)
     {
-        /* construct one column by iterating over the 4 rows */
+        // construct one column by iterating over the 4 rows
         for (j = 0; j < 4; j++)
         {
             column[j] = state[(j * 4) + i];
         }
 
-        /* apply the mixColumn on one column */
+        // apply the mixColumn on one column
         mixColumn(column);
 
-        /* put the values back into the state */
+        // put the values back into the state
         for (j = 0; j < 4; j++)
         {
             state[(j * 4) + i] = column[j];
@@ -405,10 +406,10 @@ void aes_round(unsigned char *state, unsigned char *roundKey)
 void createRoundKey(unsigned char *expandedKey, unsigned char *roundKey)
 {
     int i, j;
-    /* iterate over the columns */
+    // iterate over the columns
     for (i = 0; i < 4; i++)
     {
-        /* iterate over the rows */
+        // iterate over the rows
         for (j = 0; j < 4; j++)
             roundKey[(i + (j * 4))] = expandedKey[(i * 4) + j];
     }
@@ -440,21 +441,21 @@ char aes_encrypt(unsigned char *input,
                  unsigned char *key,
                  enum keySize size)
 {
-    /* the expanded keySize */
+    // the expanded keySize
     int expandedKeySize;
 
-    /* the number of rounds */
+    // the number of rounds
     int nbrRounds;
 
-    /* the expanded key */
+    // the expanded key
     unsigned char *expandedKey;
 
-    /* the 128 bit block to encode */
+    // the 128 bit block to encode
     unsigned char block[16];
 
     int i, j;
 
-    /* set the number of rounds */
+    // set the number of rounds
     switch (size)
     {
     case SIZE_16:
@@ -472,40 +473,50 @@ char aes_encrypt(unsigned char *input,
     }
 
     expandedKeySize = (16 * (nbrRounds + 1));
-    if ((expandedKey = malloc(expandedKeySize * sizeof(char))) == NULL)
+
+    expandedKey = (unsigned char *)malloc(expandedKeySize * sizeof(unsigned char));
+
+    if (expandedKey == NULL)
     {
         return MEMORY_ALLOCATION_PROBLEM;
     }
-
-    /* Set the block values, for the block:
-     * a0,0 a0,1 a0,2 a0,3
-     * a1,0 a1,1 a1,2 a1,3
-     * a2,0 a2,1 a2,2 a2,3
-     * a3,0 a3,1 a3,2 a3,3
-     * the mapping order is a0,0 a1,0 a2,0 a3,0 a0,1 a1,1 ... a2,3 a3,3
-     */
-
-    /* iterate over the columns */
-    for (i = 0; i < 4; i++)
+    else
     {
-        /* iterate over the rows */
-        for (j = 0; j < 4; j++)
-            block[(i + (j * 4))] = input[(i * 4) + j];
+        /* Set the block values, for the block:
+         * a0,0 a0,1 a0,2 a0,3
+         * a1,0 a1,1 a1,2 a1,3
+         * a2,0 a2,1 a2,2 a2,3
+         * a3,0 a3,1 a3,2 a3,3
+         * the mapping order is a0,0 a1,0 a2,0 a3,0 a0,1 a1,1 ... a2,3 a3,3
+         */
+
+        // iterate over the columns
+        for (i = 0; i < 4; i++)
+        {
+            // iterate over the rows
+            for (j = 0; j < 4; j++)
+                block[(i + (j * 4))] = input[(i * 4) + j];
+        }
+
+        // expand the key into an 176, 208, 240 bytes key
+        expandKey(expandedKey, key, size, expandedKeySize);
+
+        // encrypt the block using the expandedKey
+        aes_main(block, expandedKey, nbrRounds);
+
+        // unmap the block again into the output
+        for (i = 0; i < 4; i++)
+        {
+            // iterate over the rows
+            for (j = 0; j < 4; j++)
+                output[(i * 4) + j] = block[(i + (j * 4))];
+        }
+
+        // de-allocate memory for expandedKey
+        free(expandedKey);
+        expandedKey = NULL;
     }
 
-    /* expand the key into an 176, 208, 240 bytes key */
-    expandKey(expandedKey, key, size, expandedKeySize);
-
-    /* encrypt the block using the expandedKey */
-    aes_main(block, expandedKey, nbrRounds);
-
-    /* unmap the block again into the output */
-    for (i = 0; i < 4; i++)
-    {
-        /* iterate over the rows */
-        for (j = 0; j < 4; j++)
-            output[(i * 4) + j] = block[(i + (j * 4))];
-    }
     return 0;
 }
 
@@ -522,7 +533,7 @@ void invSubBytes(unsigned char *state)
 void invShiftRows(unsigned char *state)
 {
     int i;
-    /* iterate over the 4 rows and call invShiftRow() with that row */
+    // iterate over the 4 rows and call invShiftRow() with that row
     for (i = 0; i < 4; i++)
         invShiftRow(state + i * 4, i);
 }
@@ -531,7 +542,7 @@ void invShiftRow(unsigned char *state, unsigned char nbr)
 {
     int i, j;
     unsigned char tmp;
-    /* each iteration shifts the row to the right by 1 */
+    // each iteration shifts the row to the right by 1
     for (i = 0; i < nbr; i++)
     {
         tmp = state[3];
@@ -546,19 +557,19 @@ void invMixColumns(unsigned char *state)
     int i, j;
     unsigned char column[4];
 
-    /* iterate over the 4 columns */
+    // iterate over the 4 columns
     for (i = 0; i < 4; i++)
     {
-        /* construct one column by iterating over the 4 rows */
+        // construct one column by iterating over the 4 rows
         for (j = 0; j < 4; j++)
         {
             column[j] = state[(j * 4) + i];
         }
 
-        /* apply the invMixColumn on one column */
+        // apply the invMixColumn on one column
         invMixColumn(column);
 
-        /* put the values back into the state */
+        // put the values back into the state
         for (j = 0; j < 4; j++)
         {
             state[(j * 4) + i] = column[j];
@@ -627,21 +638,21 @@ char aes_decrypt(unsigned char *input,
                  unsigned char *key,
                  enum keySize size)
 {
-    /* the expanded keySize */
+    // the expanded keySize
     int expandedKeySize;
 
-    /* the number of rounds */
+    // the number of rounds
     int nbrRounds;
 
-    /* the expanded key */
+    // the expanded key
     unsigned char *expandedKey;
 
-    /* the 128 bit block to decode */
+    // the 128 bit block to decode
     unsigned char block[16];
 
     int i, j;
 
-    /* set the number of rounds */
+    // set the number of rounds
     switch (size)
     {
     case SIZE_16:
@@ -659,38 +670,49 @@ char aes_decrypt(unsigned char *input,
     }
 
     expandedKeySize = (16 * (nbrRounds + 1));
-    if ((expandedKey = malloc(expandedKeySize * sizeof(char))) == NULL)
+
+    expandedKey = (unsigned char *)malloc(expandedKeySize * sizeof(unsigned char));
+
+    if (expandedKey == NULL)
     {
         return MEMORY_ALLOCATION_PROBLEM;
     }
-
-    /* Set the block values, for the block:
-     * a0,0 a0,1 a0,2 a0,3
-     * a1,0 a1,1 a1,2 a1,3
-     * a2,0 a2,1 a2,2 a2,3
-     * a3,0 a3,1 a3,2 a3,3
-     * the mapping order is a0,0 a1,0 a2,0 a3,0 a0,1 a1,1 ... a2,3 a3,3
-     */
-
-    /* iterate over the columns */
-    for (i = 0; i < 4; i++)
+    else
     {
-        /* iterate over the rows */
-        for (j = 0; j < 4; j++)
-            block[(i + (j * 4))] = input[(i * 4) + j];
+        /* Set the block values, for the block:
+         * a0,0 a0,1 a0,2 a0,3
+         * a1,0 a1,1 a1,2 a1,3
+         * a2,0 a2,1 a2,2 a2,3
+         * a3,0 a3,1 a3,2 a3,3
+         * the mapping order is a0,0 a1,0 a2,0 a3,0 a0,1 a1,1 ... a2,3 a3,3
+         */
+
+        // iterate over the columns
+        for (i = 0; i < 4; i++)
+        {
+            // iterate over the rows
+            for (j = 0; j < 4; j++)
+                block[(i + (j * 4))] = input[(i * 4) + j];
+        }
+
+        // expand the key into an 176, 208, 240 bytes key
+        expandKey(expandedKey, key, size, expandedKeySize);
+
+        // decrypt the block using the expandedKey
+        aes_invMain(block, expandedKey, nbrRounds);
+
+        // unmap the block again into the output
+        for (i = 0; i < 4; i++)
+        {
+            // iterate over the rows
+            for (j = 0; j < 4; j++)
+                output[(i * 4) + j] = block[(i + (j * 4))];
+        }
+
+        // de-allocate memory for expandedKey
+        free(expandedKey);
+        expandedKey = NULL;
     }
 
-    /* expand the key into an 176, 208, 240 bytes key */
-    expandKey(expandedKey, key, size, expandedKeySize);
-
-    /* decrypt the block using the expandedKey */
-    aes_invMain(block, expandedKey, nbrRounds);
-
-    /* unmap the block again into the output */
-    for (i = 0; i < 4; i++)
-    {
-        /* iterate over the rows */
-        for (j = 0; j < 4; j++)
-            output[(i * 4) + j] = block[(i + (j * 4))];
-    }
+    return 0;
 }

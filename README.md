@@ -1,6 +1,22 @@
 # AES Implementation in C
 
-This is a very simple (and **NOT a highly optimized and secure**) implementation of AES only written to teach you the **BASICS** of this algorithm. I used a tutorial previously available on [progressive-coding.com](http://www.progressive-coding.com/tutorial.php?id=0) to write the C code available in this reposistory. As you may have noticed, the link is broken and the tutorial is no longer available on the web. So I revised the article, added some comprehensive images, and rewrote it in Markdown to serve as the `README.md` of my code. However, you can still find an early version of the tutorial on [cboard.cprogramming.com](https://cboard.cprogramming.com/c-programming/87805-%5Btutorial%5D-implementing-advanced-encryption-standard.html).
+This is a very simple (and **NOT a highly optimized and secure**) implementation of AES only written to teach you the **BASICS** of this algorithm. I used a tutorial previously available on [progressive-coding.com](http://www.progressive-coding.com/tutorial.php?id=0) to write the C code in this reposistory. The original link to that website is broken and the tutorial is no longer available on the web. You can still find an older version of the tutorial on [cboard.cprogramming.com](https://cboard.cprogramming.com/c-programming/87805-%5Btutorial%5D-implementing-advanced-encryption-standard.html).
+
+I revised the article, added some comprehensive images, and rewrote it in Markdown and put it here in the `README.md` of my code. 
+
+## How to build
+
+```
+make
+```
+
+## How to run
+
+```
+./build/aes
+```
+
+## Introduction to cryptography:
 
 1.  [Introduction to cryptography](#introduction-to-cryptography)
 2.  [Introduction to the Advanced Encryption Standard](#introduction-to-the-advanced-encryption-standard)
@@ -12,7 +28,6 @@ This is a very simple (and **NOT a highly optimized and secure**) implementation
 8.  [Implementation: AES Encryption](#implementation-aes-encryption)
 9.  [AES Decryption](#aes-decryption)
 
-## Introduction to cryptography:
 
 Serge Vaudenay, in his book "A classical introduction to
 cryptography", writes:
