@@ -4,13 +4,15 @@ This is a very simple (and **NOT a highly optimized and secure**) implementation
 
 I revised the article, added some comprehensive images, and rewrote it in Markdown and put it here in the `README.md` of my code. 
 
-## How to build
+## Build and run the code
+
+Build:
 
 ```
 make
 ```
 
-## How to run
+Run:
 
 ```
 ./build/aes

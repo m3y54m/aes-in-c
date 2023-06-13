@@ -7,8 +7,12 @@
 #include <stdio.h>  // for printf
 #include <stdlib.h> // for malloc, free
 
-#define UNKNOWN_KEYSIZE 11
-#define MEMORY_ALLOCATION_PROBLEM 33
+enum errorCode
+{
+    SUCCESS = 0,
+    ERROR_AES_UNKNOWN_KEYSIZE,
+    ERROR_MEMORY_ALLOCATION_FAILED,
+};
 
 // Implementation: S-Box
 
@@ -134,24 +138,30 @@ int main(int argc, char *argv[])
 
     int i;
 
-    printf("AES algorithm implemented in C\n");
+    printf("**************************************************\n");
+    printf("*   Basic implementation of AES algorithm in C   *\n");
+    printf("**************************************************\n");
 
-    printf("\nCipher Key:\n");
+    printf("\nCipher Key (HEX format):\n");
+
     for (i = 0; i < 16; i++)
     {
+        // Print characters in HEX format, 16 chars per line
         printf("%2.2x%c", key[i], ((i + 1) % 16) ? ' ' : '\n');
     }
 
     // Test the Key Expansion
     expandKey(expandedKey, key, size, expandedKeySize);
 
-    printf("\nExpanded Key:\n");
+    printf("\nExpanded Key (HEX format):\n");
+
     for (i = 0; i < expandedKeySize; i++)
     {
         printf("%2.2x%c", expandedKey[i], ((i + 1) % 16) ? ' ' : '\n');
     }
 
-    printf("\nPlaintext:\n");
+    printf("\nPlaintext (HEX format):\n");
+
     for (i = 0; i < 16; i++)
     {
         printf("%2.2x%c", plaintext[i], ((i + 1) % 16) ? ' ' : '\n');
@@ -160,7 +170,8 @@ int main(int argc, char *argv[])
     // AES Encryption
     aes_encrypt(plaintext, ciphertext, key, SIZE_16);
 
-    printf("\nCiphertext:\n");
+    printf("\nCiphertext (HEX format):\n");
+
     for (i = 0; i < 16; i++)
     {
         printf("%2.2x%c", ciphertext[i], ((i + 1) % 16) ? ' ' : '\n');
@@ -169,11 +180,13 @@ int main(int argc, char *argv[])
     // AES Decryption
     aes_decrypt(ciphertext, decryptedtext, key, SIZE_16);
 
-    printf("\nDecryptedtext:\n");
+    printf("\nDecrypted text (HEX format):\n");
+
     for (i = 0; i < 16; i++)
     {
         printf("%2.2x%c", decryptedtext[i], ((i + 1) % 16) ? ' ' : '\n');
     }
+
     return 0;
 }
 
@@ -468,7 +481,7 @@ char aes_encrypt(unsigned char *input,
         nbrRounds = 14;
         break;
     default:
-        return UNKNOWN_KEYSIZE;
+        return ERROR_AES_UNKNOWN_KEYSIZE;
         break;
     }
 
@@ -478,7 +491,7 @@ char aes_encrypt(unsigned char *input,
 
     if (expandedKey == NULL)
     {
-        return MEMORY_ALLOCATION_PROBLEM;
+        return ERROR_MEMORY_ALLOCATION_FAILED;
     }
     else
     {
@@ -517,7 +530,7 @@ char aes_encrypt(unsigned char *input,
         expandedKey = NULL;
     }
 
-    return 0;
+    return SUCCESS;
 }
 
 void invSubBytes(unsigned char *state)
@@ -665,7 +678,7 @@ char aes_decrypt(unsigned char *input,
         nbrRounds = 14;
         break;
     default:
-        return UNKNOWN_KEYSIZE;
+        return ERROR_AES_UNKNOWN_KEYSIZE;
         break;
     }
 
@@ -675,7 +688,7 @@ char aes_decrypt(unsigned char *input,
 
     if (expandedKey == NULL)
     {
-        return MEMORY_ALLOCATION_PROBLEM;
+        return ERROR_MEMORY_ALLOCATION_FAILED;
     }
     else
     {
@@ -714,5 +727,5 @@ char aes_decrypt(unsigned char *input,
         expandedKey = NULL;
     }
 
-    return 0;
+    return SUCCESS;
 }
