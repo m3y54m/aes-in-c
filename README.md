@@ -4,6 +4,9 @@ This is a very simple (and **NOT a highly optimized and secure**) implementation
 
 I revised the article, added some comprehensive images, and rewrote it in Markdown and put it here in the `README.md` of my code. 
 
+> [!CAUTION]
+> Please note that the code and materials provided in this repository are intended for educational purposes only and should not be used in production environments.
+
 ## Build and run the code
 
 Build:
