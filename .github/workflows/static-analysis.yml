@@ -9,29 +9,69 @@ on:
   workflow_dispatch:
 
 jobs:
-  # A single job in this workflow called "analyze"
-  analyze:
-    # The type of runner that the job will run on
+  cppcheck:
+    name: Run Cppcheck 🔬
     runs-on: ubuntu-latest
-
-    # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-      # 1. Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. Install necessary dependencies: CMake for building and clang-tools for scan-build
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang-tools cmake build-essential
+          sudo apt-get install -y cppcheck
 
-      # 3. Configure the project using CMake. This generates the build files in a 'build' directory.
-      - name: Configure CMake
-        run: cmake -B build -S .
+      - name: Create compilation database
+        run: cmake -B build -S . -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 
-      # 4. Run scan-build, which wraps the CMake build command to perform the analysis.
-      # The '--status-bugs' flag causes the command to exit with a non-zero code if bugs are found,
-      # which will fail the workflow step and provide clear feedback.
-      - name: Run Clang Static Analyzer
-        run: scan-build --status-bugs cmake --build build
+      - name: Run Cppcheck Analysis
+        run: >
+          cppcheck
+          --project=build/compile_commands.json
+          --enable=all
+          --inconclusive
+          --suppress=missingIncludeSystem
+          --xml
+          --error-exitcode=1
+          -i build
+          2> cppcheck-report.xml
+
+      - name: Generate HTML report
+        run: cppcheck-htmlreport --file=cppcheck-report.xml --report-dir=cppcheck-html --source-dir=.
+      
+      - name: Upload Cppcheck HTML report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cppcheck-html-report
+          path: cppcheck-html
+
+  deploy-pages:
+    name: Deploy to GitHub Pages 🚀
+    # This job requires the cppcheck job to succeed first
+    needs: cppcheck
+    # Only run this job on pushes to the main branch, not on pull requests
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    # Grant permissions for the action to push to the gh-pages branch
+    permissions:
+      contents: write
+      
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download HTML report artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: cppcheck-html-report
+          path: ./report # Download the artifact into a 'report' directory
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          # The directory to publish from (where we downloaded the artifact)
+          publish_dir: ./report
+          # The directory to publish to on the gh-pages branch
+          destination_dir: ./static-analysis
+          # Cleans the destination directory before publishing
+          keep_files: false
