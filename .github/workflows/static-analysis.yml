@@ -2,13 +2,11 @@ name: C Static Analysis
 
 # Controls when the workflow will run
 on:
-  # Triggers the workflow on push events for the "main" branch
   push:
-    branches: [ "main" ]
-  
-  # Triggers the workflow on pull request events targeting the "main" branch
+    branches: [ master, main ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ master, main ]
+  workflow_dispatch:
 
 jobs:
   # A single job in this workflow called "analyze"
