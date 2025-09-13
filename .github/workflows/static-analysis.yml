@@ -75,3 +75,9 @@ jobs:
           destination_dir: ./static-analysis
           # Cleans the destination directory before publishing
           keep_files: false
+
+      - name: Show Deployed URL
+        run: |
+          # Extracts the repository name from the full 'owner/repo' string
+          REPO_NAME=$(echo "${{ github.repository }}" | cut -d'/' -f2)
+          echo "✅ View the deployed report at: https://${{ github.repository_owner }}.github.io/${REPO_NAME}/static-analysis/"
