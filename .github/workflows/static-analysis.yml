@@ -1,0 +1,39 @@
+name: C Static Analysis
+
+# Controls when the workflow will run
+on:
+  # Triggers the workflow on push events for the "main" branch
+  push:
+    branches: [ "main" ]
+  
+  # Triggers the workflow on pull request events targeting the "main" branch
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  # A single job in this workflow called "analyze"
+  analyze:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # 1. Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. Install necessary dependencies: CMake for building and clang-tools for scan-build
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-tools cmake build-essential
+
+      # 3. Configure the project using CMake. This generates the build files in a 'build' directory.
+      - name: Configure CMake
+        run: cmake -B build -S .
+
+      # 4. Run scan-build, which wraps the CMake build command to perform the analysis.
+      # The '--status-bugs' flag causes the command to exit with a non-zero code if bugs are found,
+      # which will fail the workflow step and provide clear feedback.
+      - name: Run Clang Static Analyzer
+        run: scan-build --status-bugs cmake --build build

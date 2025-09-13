@@ -9,16 +9,25 @@ I revised the article, added some comprehensive images, and rewrote it in Markdo
 
 ## Build and run the code
 
-Build:
+This project now uses CMake as the canonical build system. The old
+`Makefile` has been retired; use the following commands to configure,
+build and run the tests.
+
+POSIX / Git Bash / WSL:
 
 ```
-make
+mkdir -p build
+cmake -S . -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_BUILD_TYPE=Release
+cmake --build build --config Release -- -j
+./build/test_aes
 ```
 
-Run:
+PowerShell (Windows):
 
 ```
-./build/aes
+cmake -S . -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_BUILD_TYPE=Release
+cmake --build build --config Release
+.\build\test_aes.exe
 ```
 
 ## Introduction to cryptography:
