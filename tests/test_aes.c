@@ -4,8 +4,8 @@
 
 int main(void)
 {
-  uint8_t key[AES_BLOCK_SIZE] = {'k', 'k', 'k', 'k', 'e', 'e', 'e', 'e', 'y', 'y', 'y', 'y', '.', '.', '.', '.'};
-  uint8_t plaintext[AES_BLOCK_SIZE] = {'a', 'b', 'c', 'd', 'e', 'f', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0'};
+  const uint8_t key[AES_BLOCK_SIZE] = {'k', 'k', 'k', 'k', 'e', 'e', 'e', 'e', 'y', 'y', 'y', 'y', '.', '.', '.', '.'};
+  const uint8_t plaintext[AES_BLOCK_SIZE] = {'a', 'b', 'c', 'd', 'e', 'f', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0'};
   uint8_t ciphertext[AES_BLOCK_SIZE];
   uint8_t decrypted[AES_BLOCK_SIZE];
 
