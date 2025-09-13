@@ -2,13 +2,12 @@
 # Use gcc by default (use `make CC=clang` or edit this file to override)
 CC := gcc
 STD ?= -std=c17
-CFLAGS ?= $(STD) -Wall -Wextra -Wpedantic -Wshadow -Wconversion -g
+CFLAGS ?= $(STD) -Wall -Wextra -Wpedantic -Wshadow -Wconversion -g -Iinclude
 LDFLAGS ?=
 
 # Project layout
 SOURCE_DIR ?= src
 BUILD_DIR ?= build
-TARGET ?= $(BUILD_DIR)/aes
 
 # Platform-specific command snippets (avoid shell conditionals in recipes)
 ifeq ($(OS),Windows_NT)
@@ -24,8 +23,12 @@ SRCS := $(wildcard $(SOURCE_DIR)/*.c)
 OBJS := $(patsubst $(SOURCE_DIR)/%.c,$(BUILD_DIR)/%.o,$(SRCS))
 
 .PHONY: all help clean release debug
+SRCS_TEST := $(wildcard tests/*.c)
+OBJS_TEST := $(patsubst tests/%.c,$(BUILD_DIR)/%_test.o,$(SRCS_TEST))
 
-all: $(TARGET)
+.PHONY: test
+
+all: test
 
 # Ensure build directory exists
 $(BUILD_DIR):
@@ -35,9 +38,19 @@ $(BUILD_DIR):
 $(BUILD_DIR)/%.o: $(SOURCE_DIR)/%.c | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -c $< -o $@
 
-# Link
-$(TARGET): $(OBJS)
+# (No generic link rule here.)
+# The test binary is linked explicitly below from aes.o and test objects.
+
+test: $(BUILD_DIR) $(BUILD_DIR)/test_aes
+	@echo Running tests...
+	$(BUILD_DIR)/test_aes
+
+# Link test binary using only the AES implementation object(s) and test objects.
+$(BUILD_DIR)/test_aes: $(BUILD_DIR)/aes.o $(OBJS_TEST)
 	$(CC) $(LDFLAGS) $^ -o $@
+
+$(BUILD_DIR)/%_test.o: tests/%.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -c $< -o $@
 
 release: CFLAGS = $(STD) -O2 -Wall -Wextra
 release: clean all
@@ -52,7 +65,8 @@ help:
 	@echo "Usage: make [target] [VARIABLE=value]"
 	@echo
 	@echo "Targets:"
-	@echo "  all (default)    Build the program"
+	@echo "  all (default)    Build and run tests
+	@echo "  test             Build test binary and run unit tests"
 	@echo "  release          Build with optimizations"
 	@echo "  debug            Build with debug flags"
 	@echo "  clean            Remove build artifacts"
