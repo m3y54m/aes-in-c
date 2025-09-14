@@ -1,7 +1,11 @@
-/* Basic implementation of AES in C
+/**
+ * @file aes.c
+ * @brief An implementation of the AES (Rijndael) algorithm.
  *
- * NOTE: This code is provided for learning and demonstration purposes only.
- * It is not intended for production use or as a secure cryptographic library.
+ * @details This file contains the core implementation of the AES encryption
+ * and decryption routines. It is designed to be self-contained and easy to
+ * integrate. The state is handled in a column-major format consistent with
+ * the FIPS-197 specification.
  */
 
 #include <stdio.h>
@@ -10,7 +14,24 @@
 #include <stddef.h>
 #include "../include/aes.h"
 
-/* Implementation: S-Box */
+// Internal constants for the AES implementation.
+#define BITS_PER_BYTE 8
+#define WORD_SIZE 4
+
+// Number of rounds for each key size.
+#define AES_ROUNDS_128 10
+#define AES_ROUNDS_192 12
+#define AES_ROUNDS_256 14
+
+// Galois Field (GF(2^8)) constants for the MixColumns step.
+#define GF_REDUCING_POLYNOMIAL 0x1B // Irreducible polynomial for AES: x^8 + x^4 + x^3 + x + 1
+#define GF_MSB_MASK 0x80
+
+/* --------------------------------------------------------------------------
+ * S-Box and Inverse S-Box Lookup Tables
+ * -------------------------------------------------------------------------- */
+
+//! The AES Substitution Box (S-Box)
 static const uint8_t sbox[256] = {
     // 0     1    2      3     4    5     6     7      8    9     A      B    C     D     E     F
     0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5, 0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76,  // 0
@@ -30,6 +51,7 @@ static const uint8_t sbox[256] = {
     0xe1, 0xf8, 0x98, 0x11, 0x69, 0xd9, 0x8e, 0x94, 0x9b, 0x1e, 0x87, 0xe9, 0xce, 0x55, 0x28, 0xdf,  // E
     0x8c, 0xa1, 0x89, 0x0d, 0xbf, 0xe6, 0x42, 0x68, 0x41, 0x99, 0x2d, 0x0f, 0xb0, 0x54, 0xbb, 0x16}; // F
 
+//! The AES Inverse Substitution Box (InvS-Box)
 static const uint8_t rsbox[256] = {
     0x52, 0x09, 0x6a, 0xd5, 0x30, 0x36, 0xa5, 0x38, 0xbf, 0x40, 0xa3, 0x9e, 0x81, 0xf3, 0xd7, 0xfb,
     0x7c, 0xe3, 0x39, 0x82, 0x9b, 0x2f, 0xff, 0x87, 0x34, 0x8e, 0x43, 0x44, 0xc4, 0xde, 0xe9, 0xcb,
@@ -48,553 +70,367 @@ static const uint8_t rsbox[256] = {
     0xa0, 0xe0, 0x3b, 0x4d, 0xae, 0x2a, 0xf5, 0xb0, 0xc8, 0xeb, 0xbb, 0x3c, 0x83, 0x53, 0x99, 0x61,
     0x17, 0x2b, 0x04, 0x7e, 0xba, 0x77, 0xd6, 0x26, 0xe1, 0x69, 0x14, 0x63, 0x55, 0x21, 0x0c, 0x7d};
 
-static uint8_t sbox_get(uint8_t num) { return sbox[num]; }
-static uint8_t sbox_inverse_get(uint8_t num) { return rsbox[num]; }
+//! The Round Constant (Rcon) table used in the key schedule.
+static const uint8_t rcon[] = {
+    0x00, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40,
+    0x80, 0x1b, 0x36, 0x6c, 0xd8, 0xab, 0x4d, 0x9a,
+    0x2f, 0x5e, 0xbc, 0x63, 0xc6, 0x97, 0x35, 0x6a,
+    0xd4, 0xb3, 0x7d, 0xfa, 0xef, 0xc5, 0x91, 0x39};
 
-/* Forward declarations for helper functions (defined later) */
-static void shift_row(uint8_t *state, uint8_t number);
-static void mix_column(uint8_t *column);
-static void inv_shift_row(uint8_t *state, uint8_t number);
-static void inv_mix_column(uint8_t *column);
+/**
+ * @brief Securely erases a region of memory.
+ * @param[in,out] ptr A pointer to the memory to be zeroed.
+ * @param[in] n The number of bytes to zero.
+ */
+static void secure_zero_memory(void *ptr, size_t n)
+{
+  if (!ptr || n == 0)
+    return;
+  volatile uint8_t *p = (volatile uint8_t *)ptr;
+  while (n--)
+    *p++ = 0;
+}
 
-/* Rijndael's key schedule rotate operation
- * rotate the word eight bits to the left
- *
- * rotate(1d2c3a4f) = 2c3a4f1d
- *
- * word is an uint8_t array of size 4 (32 bit)
+/**
+ * @brief Performs a cyclic left shift on a 4-byte word.
+ * @param[in,out] word A pointer to a 4-byte array to be rotated.
  */
 static void word_rotate_left(uint8_t *word)
 {
-  uint8_t tmp = word[0];
+  uint8_t temp = word[0];
   word[0] = word[1];
   word[1] = word[2];
   word[2] = word[3];
-  word[3] = tmp;
+  word[3] = temp;
 }
 
-static const uint8_t rcon[255] = {
-    0x8d, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36, 0x6c, 0xd8,
-    0xab, 0x4d, 0x9a, 0x2f, 0x5e, 0xbc, 0x63, 0xc6, 0x97, 0x35, 0x6a, 0xd4, 0xb3,
-    0x7d, 0xfa, 0xef, 0xc5, 0x91, 0x39, 0x72, 0xe4, 0xd3, 0xbd, 0x61, 0xc2, 0x9f,
-    0x25, 0x4a, 0x94, 0x33, 0x66, 0xcc, 0x83, 0x1d, 0x3a, 0x74, 0xe8, 0xcb, 0x8d,
-    0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36, 0x6c, 0xd8, 0xab,
-    0x4d, 0x9a, 0x2f, 0x5e, 0xbc, 0x63, 0xc6, 0x97, 0x35, 0x6a, 0xd4, 0xb3, 0x7d,
-    0xfa, 0xef, 0xc5, 0x91, 0x39, 0x72, 0xe4, 0xd3, 0xbd, 0x61, 0xc2, 0x9f, 0x25,
-    0x4a, 0x94, 0x33, 0x66, 0xcc, 0x83, 0x1d, 0x3a, 0x74, 0xe8, 0xcb, 0x8d, 0x01,
-    0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36, 0x6c, 0xd8, 0xab, 0x4d,
-    0x9a, 0x2f, 0x5e, 0xbc, 0x63, 0xc6, 0x97, 0x35, 0x6a, 0xd4, 0xb3, 0x7d, 0xfa,
-    0xef, 0xc5, 0x91, 0x39, 0x72, 0xe4, 0xd3, 0xbd, 0x61, 0xc2, 0x9f, 0x25, 0x4a,
-    0x94, 0x33, 0x66, 0xcc, 0x83, 0x1d, 0x3a, 0x74, 0xe8, 0xcb, 0x8d, 0x01, 0x02,
-    0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36, 0x6c, 0xd8, 0xab, 0x4d, 0x9a,
-    0x2f, 0x5e, 0xbc, 0x63, 0xc6, 0x97, 0x35, 0x6a, 0xd4, 0xb3, 0x7d, 0xfa, 0xef,
-    0xc5, 0x91, 0x39, 0x72, 0xe4, 0xd3, 0xbd, 0x61, 0xc2, 0x9f, 0x25, 0x4a, 0x94,
-    0x33, 0x66, 0xcc, 0x83, 0x1d, 0x3a, 0x74, 0xe8, 0xcb, 0x8d, 0x01, 0x02, 0x04,
-    0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36, 0x6c, 0xd8, 0xab, 0x4d, 0x9a, 0x2f,
-    0x5e, 0xbc, 0x63, 0xc6, 0x97, 0x35, 0x6a, 0xd4, 0xb3, 0x7d, 0xfa, 0xef, 0xc5,
-    0x91, 0x39, 0x72, 0xe4, 0xd3, 0xbd, 0x61, 0xc2, 0x9f, 0x25, 0x4a, 0x94, 0x33,
-    0x66, 0xcc, 0x83, 0x1d, 0x3a, 0x74, 0xe8, 0xcb};
-
-static uint8_t rcon_get(uint8_t num) { return rcon[num]; }
-
-/* Internal implementation constants (prefer enum over preprocessor macros)
- * These are intentionally distinct from the public API macros in include/aes.h
- * to avoid symbol conflicts and to satisfy modernize-macro-to-enum checks.
+/**
+ * @brief The core transformation for the key expansion schedule.
+ * @param[in,out] word The word to be transformed.
+ * @param[in] iteration The current Rcon iteration.
  */
-enum
-{
-  IMPL_AES_BLOCK_SIZE = 16U,
-  IMPL_AES_ROUNDS_128 = 10U,
-  IMPL_AES_ROUNDS_192 = 12U,
-  IMPL_AES_ROUNDS_256 = 14U,
-  IMPL_GF_BIT_WIDTH = 8U,
-  IMPL_GF_MSB = 0x80U,
-  IMPL_GF_REDUCE_POLY = 0x1BU
-};
-
-/* Galois-field multiplication coefficients used in MixColumns operations */
-enum
-{
-  IMPL_GF_MUL_1 = 1,
-  IMPL_GF_MUL_2 = 2,
-  IMPL_GF_MUL_3 = 3,
-  IMPL_GF_MUL_9 = 9,
-  IMPL_GF_MUL_11 = 11,
-  IMPL_GF_MUL_13 = 13,
-  IMPL_GF_MUL_14 = 14
-};
-
 static void key_schedule_core(uint8_t *word, uint8_t iteration)
 {
-  /* Rotate the 32-bit word 8 bits to the left, substitute through S-box,
-   then XOR the first byte with the appropriate rcon value. */
   word_rotate_left(word);
-
-  for (uint8_t idx = 0; idx < 4; ++idx)
-  {
-    word[idx] = sbox_get(word[idx]);
-  }
-
-  word[0] ^= rcon_get(iteration);
+  for (uint8_t i = 0; i < WORD_SIZE; ++i)
+    word[i] = sbox[word[i]];
+  word[0] ^= rcon[iteration];
 }
 
-/* Securely zero memory */
-static void safe_zero(void *ptr, size_t n)
+void aes_expand_key(uint8_t *expanded_key, const uint8_t *key, aes_key_size_t key_size, size_t expanded_key_size)
 {
-  if (ptr == NULL || n == 0)
-  {
-    return;
-  }
-  volatile uint8_t *vptr = (volatile uint8_t *)ptr;
-  while (n--)
-  {
-    *vptr++ = 0;
-  }
-}
-
-/* Rijndael's key expansion
- * expands an 128,192,256 key into an 176,208,240 bytes key
- *
- * expanded_key is a pointer to an uint8_t array of large enough size
- * key is a pointer to a non-expanded key
- */
-void expand_key(uint8_t *expanded_key, const uint8_t *key, aes_key_size_t size, size_t expanded_key_size)
-{
-  // current expanded_key_size, in bytes
-  size_t current_size = 0;
+  size_t current_size = (size_t)key_size;
   uint8_t rcon_iteration = 1;
-  // temporary 4-byte array
-  uint8_t tmp[4] = {0};
+  uint8_t temp_word[WORD_SIZE];
 
-  // set the 16, 24, 32 bytes of the expanded key to the input key
-  for (size_t idx = 0; idx < (size_t)size; idx++)
-  {
-    expanded_key[idx] = key[idx];
-  }
-  current_size += (size_t)size;
+  for (size_t i = 0; i < current_size; i++)
+    expanded_key[i] = key[i];
 
   while (current_size < expanded_key_size)
   {
-    // assign the previous 4 bytes to the temporary value tmp
-    for (size_t idx = 0; idx < 4; idx++)
+    for (size_t i = 0; i < WORD_SIZE; i++)
+      temp_word[i] = expanded_key[current_size - WORD_SIZE + i];
+
+    if (current_size % (size_t)key_size == 0)
     {
-      tmp[idx] = expanded_key[(current_size - 4) + idx];
+      key_schedule_core(temp_word, rcon_iteration++);
     }
 
-    /* every 16,24,32 bytes we apply the core schedule to t
-     * and increment rcon_iteration afterwards
-     */
-    if (current_size % size == 0)
+    if (key_size == AES_KEY_SIZE_256 && (current_size % (size_t)key_size) == AES_BLOCK_SIZE)
     {
-      key_schedule_core(tmp, rcon_iteration++);
+      for (size_t i = 0; i < WORD_SIZE; i++)
+        temp_word[i] = sbox[temp_word[i]];
     }
 
-    // For 256-bit keys, we add an extra sbox to the calculation
-    if (size == AES_KEY_256 && ((current_size % (size_t)size) == IMPL_AES_BLOCK_SIZE))
+    for (size_t i = 0; i < WORD_SIZE; i++)
     {
-      for (size_t idx = 0; idx < 4; idx++)
-      {
-        tmp[idx] = sbox_get(tmp[idx]);
-      }
-    }
-
-    /* We XOR t with the four-byte block 16,24,32 bytes before the new expanded key.
-     * This becomes the next four bytes in the expanded key.
-     */
-    for (size_t idx = 0; idx < 4; idx++)
-    {
-      expanded_key[current_size] = expanded_key[current_size - (size_t)size] ^ tmp[idx];
+      expanded_key[current_size] = expanded_key[current_size - (size_t)key_size] ^ temp_word[i];
       current_size++;
     }
   }
 }
 
-static void sub_bytes(uint8_t *state)
+/** @brief Applies the SubBytes transformation to the state. */
+static void sub_bytes(aes_state_t *state)
 {
-  /* substitute all the values from the state with the value in the SBox
-   * using the state value as index for the SBox
-   */
-  for (size_t idx = 0; idx < IMPL_AES_BLOCK_SIZE; idx++)
+  for (int r = 0; r < AES_STATE_DIM; ++r)
+    for (int c = 0; c < AES_STATE_DIM; ++c)
+      (*state)[r][c] = sbox[(*state)[r][c]];
+}
+
+/** @brief Applies the Inverse SubBytes transformation to the state. */
+static void inv_sub_bytes(aes_state_t *state)
+{
+  for (int r = 0; r < AES_STATE_DIM; ++r)
+    for (int c = 0; c < AES_STATE_DIM; ++c)
+      (*state)[r][c] = rsbox[(*state)[r][c]];
+}
+
+/** @brief Applies the ShiftRows transformation to the state. */
+static void shift_rows(aes_state_t *state)
+{
+  uint8_t temp;
+  // Row 1: 1-byte left shift
+  temp = (*state)[1][0];
+  (*state)[1][0] = (*state)[1][1];
+  (*state)[1][1] = (*state)[1][2];
+  (*state)[1][2] = (*state)[1][3];
+  (*state)[1][3] = temp;
+
+  // Row 2: 2-byte left shift
+  temp = (*state)[2][0];
+  (*state)[2][0] = (*state)[2][2];
+  (*state)[2][2] = temp;
+  temp = (*state)[2][1];
+  (*state)[2][1] = (*state)[2][3];
+  (*state)[2][3] = temp;
+
+  // Row 3: 3-byte left shift
+  temp = (*state)[3][0];
+  (*state)[3][0] = (*state)[3][3];
+  (*state)[3][3] = (*state)[3][2];
+  (*state)[3][2] = (*state)[3][1];
+  (*state)[3][1] = temp;
+}
+
+/** @brief Applies the Inverse ShiftRows transformation to the state. */
+static void inv_shift_rows(aes_state_t *state)
+{
+  uint8_t temp;
+  // Row 1: 1-byte right shift
+  temp = (*state)[1][3];
+  (*state)[1][3] = (*state)[1][2];
+  (*state)[1][2] = (*state)[1][1];
+  (*state)[1][1] = (*state)[1][0];
+  (*state)[1][0] = temp;
+
+  // Row 2: 2-byte right shift
+  temp = (*state)[2][0];
+  (*state)[2][0] = (*state)[2][2];
+  (*state)[2][2] = temp;
+  temp = (*state)[2][1];
+  (*state)[2][1] = (*state)[2][3];
+  (*state)[2][3] = temp;
+
+  // Row 3: 3-byte right shift
+  temp = (*state)[3][3];
+  (*state)[3][3] = (*state)[3][0];
+  (*state)[3][0] = (*state)[3][1];
+  (*state)[3][1] = (*state)[3][2];
+  (*state)[3][2] = temp;
+}
+
+/**
+ * @brief Performs multiplication in the Galois Field GF(2^8).
+ * @param a The first operand.
+ * @param b The second operand.
+ * @return The result of (a * b) in GF(2^8).
+ */
+static uint8_t galois_mul(uint8_t a, uint8_t b)
+{
+  uint8_t p = 0;
+  for (int i = 0; i < BITS_PER_BYTE; i++)
   {
-    state[idx] = sbox_get(state[idx]);
+    if (b & 1)
+      p ^= a;
+    uint8_t hi_bit_set = a & GF_MSB_MASK;
+    a <<= 1;
+    if (hi_bit_set)
+      a ^= GF_REDUCING_POLYNOMIAL;
+    b >>= 1;
+  }
+  return p;
+}
+
+/** @brief Applies the MixColumns transformation to the state. */
+static void mix_columns(aes_state_t *state)
+{
+  uint8_t t[AES_STATE_DIM];
+  for (int c = 0; c < AES_STATE_DIM; ++c)
+  {
+    for (int r = 0; r < AES_STATE_DIM; ++r)
+      t[r] = (*state)[r][c];
+    (*state)[0][c] = galois_mul(t[0], 2) ^ galois_mul(t[1], 3) ^ t[2] ^ t[3];
+    (*state)[1][c] = t[0] ^ galois_mul(t[1], 2) ^ galois_mul(t[2], 3) ^ t[3];
+    (*state)[2][c] = t[0] ^ t[1] ^ galois_mul(t[2], 2) ^ galois_mul(t[3], 3);
+    (*state)[3][c] = galois_mul(t[0], 3) ^ t[1] ^ t[2] ^ galois_mul(t[3], 2);
   }
 }
 
-static void shift_rows(uint8_t *state)
+/** @brief Applies the Inverse MixColumns transformation to the state. */
+static void inv_mix_columns(aes_state_t *state)
 {
-  // iterate over the 4 rows and call shift_row() with that row
-  for (size_t row = 0; row < 4; row++)
+  uint8_t t[AES_STATE_DIM];
+  for (int c = 0; c < AES_STATE_DIM; ++c)
   {
-    shift_row(state + (row * 4), (uint8_t)row);
+    for (int r = 0; r < AES_STATE_DIM; ++r)
+      t[r] = (*state)[r][c];
+    (*state)[0][c] = galois_mul(t[0], 14) ^ galois_mul(t[1], 11) ^ galois_mul(t[2], 13) ^ galois_mul(t[3], 9);
+    (*state)[1][c] = galois_mul(t[0], 9) ^ galois_mul(t[1], 14) ^ galois_mul(t[2], 11) ^ galois_mul(t[3], 13);
+    (*state)[2][c] = galois_mul(t[0], 13) ^ galois_mul(t[1], 9) ^ galois_mul(t[2], 14) ^ galois_mul(t[3], 11);
+    (*state)[3][c] = galois_mul(t[0], 11) ^ galois_mul(t[1], 13) ^ galois_mul(t[2], 9) ^ galois_mul(t[3], 14);
   }
 }
 
-static void shift_row(uint8_t *state, uint8_t number)
+/**
+ * @brief XORs the round key with the state.
+ * @param[in,out] state The current state matrix.
+ * @param[in] round_key The round key to be added.
+ */
+static void add_round_key(aes_state_t *state, const uint8_t *round_key)
 {
-  // each iteration shifts the row to the left by 1
-  for (size_t row = 0; row < (size_t)number; row++)
-  {
-    uint8_t tmp = state[0];
-    for (size_t col = 0; col < 3; col++)
-    {
-      state[col] = state[col + 1];
-    }
-    state[3] = tmp;
-  }
+  for (int c = 0; c < AES_STATE_DIM; ++c)
+    for (int r = 0; r < AES_STATE_DIM; ++r)
+      (*state)[r][c] ^= round_key[c * AES_STATE_DIM + r];
 }
 
-static void add_round_key(uint8_t *state, const uint8_t *round_key)
+/**
+ * @brief The main AES encryption cipher loop.
+ * @param[in,out] state The 16-byte state to be encrypted.
+ * @param[in] expanded_key The pre-computed key schedule.
+ * @param[in] num_rounds The number of rounds for the given key size.
+ */
+static void cipher_encrypt_block(aes_state_t *state, const uint8_t *expanded_key, uint16_t num_rounds)
 {
-  for (size_t idx = 0; idx < IMPL_AES_BLOCK_SIZE; idx++)
+  add_round_key(state, expanded_key);
+  for (uint16_t round = 1; round < num_rounds; round++)
   {
-    state[idx] = state[idx] ^ round_key[idx];
+    sub_bytes(state);
+    shift_rows(state);
+    mix_columns(state);
+    add_round_key(state, expanded_key + (AES_BLOCK_SIZE * round));
   }
-}
-
-static uint8_t galois_mul(uint8_t x_val, uint8_t y_val)
-{
-  uint8_t product = 0;
-  for (size_t bit = 0; bit < IMPL_GF_BIT_WIDTH; bit++)
-  {
-    if ((y_val & 1) == 1)
-    {
-      product ^= x_val;
-    }
-    uint8_t hi_bit_set = (x_val & IMPL_GF_MSB);
-    x_val <<= 1;
-    if (hi_bit_set == IMPL_GF_MSB)
-    {
-      x_val ^= IMPL_GF_REDUCE_POLY;
-    }
-    y_val >>= 1;
-  }
-  return product;
-}
-
-static void mix_columns(uint8_t *state)
-{
-  uint8_t column[4];
-  for (size_t col = 0; col < 4; col++)
-  {
-    // construct one column by iterating over the 4 rows
-    for (size_t row = 0; row < 4; row++)
-    {
-      column[row] = state[(row * 4) + col];
-    }
-
-    mix_column(column);
-
-    // put the values back into the state
-    for (size_t row = 0; row < 4; row++)
-    {
-      state[(row * 4) + col] = column[row];
-    }
-  }
-}
-
-static void mix_column(uint8_t *column)
-{
-  uint8_t column_copy[4];
-  for (size_t col = 0; col < 4; col++)
-  {
-    column_copy[col] = column[col];
-  }
-  column[0] = galois_mul(column_copy[0], IMPL_GF_MUL_2) ^
-              galois_mul(column_copy[3], IMPL_GF_MUL_1) ^
-              galois_mul(column_copy[2], IMPL_GF_MUL_1) ^
-              galois_mul(column_copy[1], IMPL_GF_MUL_3);
-
-  column[1] = galois_mul(column_copy[1], IMPL_GF_MUL_2) ^
-              galois_mul(column_copy[0], IMPL_GF_MUL_1) ^
-              galois_mul(column_copy[3], IMPL_GF_MUL_1) ^
-              galois_mul(column_copy[2], IMPL_GF_MUL_3);
-
-  column[2] = galois_mul(column_copy[2], IMPL_GF_MUL_2) ^
-              galois_mul(column_copy[1], IMPL_GF_MUL_1) ^
-              galois_mul(column_copy[0], IMPL_GF_MUL_1) ^
-              galois_mul(column_copy[3], IMPL_GF_MUL_3);
-
-  column[3] = galois_mul(column_copy[3], IMPL_GF_MUL_2) ^
-              galois_mul(column_copy[2], IMPL_GF_MUL_1) ^
-              galois_mul(column_copy[1], IMPL_GF_MUL_1) ^
-              galois_mul(column_copy[0], IMPL_GF_MUL_3);
-}
-
-static void round_encrypt(uint8_t *state, const uint8_t *round_key)
-{
   sub_bytes(state);
   shift_rows(state);
-  mix_columns(state);
-  add_round_key(state, round_key);
+  add_round_key(state, expanded_key + (AES_BLOCK_SIZE * num_rounds));
 }
 
-static void create_round_key(const uint8_t *expanded_key, uint8_t *round_key)
+/**
+ * @brief The main AES decryption cipher loop.
+ * @param[in,out] state The 16-byte state to be decrypted.
+ * @param[in] expanded_key The pre-computed key schedule.
+ * @param[in] num_rounds The number of rounds for the given key size.
+ */
+static void cipher_decrypt_block(aes_state_t *state, const uint8_t *expanded_key, uint16_t num_rounds)
 {
-  for (size_t col = 0; col < 4; col++)
+  add_round_key(state, expanded_key + (AES_BLOCK_SIZE * num_rounds));
+  for (uint16_t round = num_rounds; round > 1; round--)
   {
-    for (size_t row = 0; row < 4; row++)
-    {
-      round_key[(col + (row * 4))] = expanded_key[(col * 4) + row];
-    }
+    inv_shift_rows(state);
+    inv_sub_bytes(state);
+    add_round_key(state, expanded_key + (AES_BLOCK_SIZE * (round - 1)));
+    inv_mix_columns(state);
   }
+  inv_shift_rows(state);
+  inv_sub_bytes(state);
+  add_round_key(state, expanded_key);
 }
 
-static void cipher_encrypt_block(uint8_t *state, const uint8_t *expanded_key, uint16_t number_of_rounds)
-{
-  uint8_t round_key[IMPL_AES_BLOCK_SIZE];
-
-  create_round_key(expanded_key, round_key);
-  add_round_key(state, round_key);
-
-  for (uint16_t round = 1; round < number_of_rounds; round++)
-  {
-    create_round_key(expanded_key + (IMPL_AES_BLOCK_SIZE * round), round_key);
-    round_encrypt(state, round_key);
-  }
-
-  create_round_key(expanded_key + (IMPL_AES_BLOCK_SIZE * number_of_rounds), round_key);
-  sub_bytes(state);
-  shift_rows(state);
-  add_round_key(state, round_key);
-}
-
-aes_error_t aes_encrypt(const uint8_t *input,
-                        uint8_t *output,
+aes_error_t aes_encrypt(const uint8_t *plaintext,
+                        uint8_t *ciphertext,
                         const uint8_t *key,
-                        aes_key_size_t size)
+                        aes_key_size_t key_size)
 {
-  uint16_t number_of_rounds;
-  switch (size)
+  if (!plaintext || !ciphertext || !key)
+    return AES_ERROR_UNSUPPORTED_KEY_SIZE;
+
+  uint16_t num_rounds;
+  switch (key_size)
   {
-  case AES_KEY_128:
-    number_of_rounds = IMPL_AES_ROUNDS_128;
+  case AES_KEY_SIZE_128:
+    num_rounds = AES_ROUNDS_128;
     break;
-  case AES_KEY_192:
-    number_of_rounds = IMPL_AES_ROUNDS_192;
+  case AES_KEY_SIZE_192:
+    num_rounds = AES_ROUNDS_192;
     break;
-  case AES_KEY_256:
-    number_of_rounds = IMPL_AES_ROUNDS_256;
+  case AES_KEY_SIZE_256:
+    num_rounds = AES_ROUNDS_256;
     break;
   default:
-    return AES_ERROR_UNKNOWN_KEYSIZE;
+    return AES_ERROR_UNSUPPORTED_KEY_SIZE;
   }
 
-  size_t expanded_key_size = (size_t)IMPL_AES_BLOCK_SIZE * ((size_t)number_of_rounds + 1);
-
+  size_t expanded_key_size = (size_t)AES_BLOCK_SIZE * (num_rounds + 1);
   uint8_t *expanded_key = (uint8_t *)malloc(expanded_key_size);
-  if (expanded_key == NULL)
-  {
+  if (!expanded_key)
     return AES_ERROR_MEMORY_ALLOCATION_FAILED;
-  }
 
-  /* Set the block values, for the block:
-   * a0,0 a0,1 a0,2 a0,3
-   * a1,0 a1,1 a1,2 a1,3
-   * a2,0 a2,1 a2,2 a2,3
-   * a3,0 a3,1 a3,2 a3,3
-   * the mapping order is a0,0 a1,0 a2,0 a3,0 a0,1 a1,1 ... a2,3 a3,3
-   */
+  aes_expand_key(expanded_key, key, key_size, expanded_key_size);
 
-  uint8_t block[IMPL_AES_BLOCK_SIZE];
+  aes_state_t state;
+  for (int r = 0; r < AES_STATE_DIM; ++r)
+    for (int c = 0; c < AES_STATE_DIM; ++c)
+      state[r][c] = plaintext[r + AES_STATE_DIM * c];
 
-  for (size_t col = 0; col < 4; col++)
-  {
-    for (size_t row = 0; row < 4; row++)
-    {
-      block[(col + (row * 4))] = input[(col * 4) + row];
-    }
-  }
+  cipher_encrypt_block(&state, expanded_key, num_rounds);
 
-  // expand the key into an 176, 208, 240 bytes key
-  expand_key(expanded_key, key, size, expanded_key_size);
+  for (int r = 0; r < AES_STATE_DIM; ++r)
+    for (int c = 0; c < AES_STATE_DIM; ++c)
+      ciphertext[r + AES_STATE_DIM * c] = state[r][c];
 
-  // encrypt the block using the expanded_key
-  cipher_encrypt_block(block, expanded_key, number_of_rounds);
-
-  // unmap the block again into the output
-  for (size_t col = 0; col < 4; col++)
-  {
-    for (size_t row = 0; row < 4; row++)
-    {
-      output[(col * 4) + row] = block[(col + (row * 4))];
-    }
-  }
-
-  // de-allocate memory for expanded_key (safely)
-  safe_zero(expanded_key, expanded_key_size);
+  secure_zero_memory(expanded_key, expanded_key_size);
   free(expanded_key);
-  expanded_key = NULL;
-
   return AES_SUCCESS;
 }
 
-static void inv_sub_bytes(uint8_t *state)
-{
-  for (size_t idx = 0; idx < IMPL_AES_BLOCK_SIZE; idx++)
-  {
-    state[idx] = sbox_inverse_get(state[idx]);
-  }
-}
-
-static void inv_shift_rows(uint8_t *state)
-{
-  for (size_t idx = 0; idx < 4; idx++)
-  {
-    inv_shift_row(state + (idx * 4), (uint8_t)idx);
-  }
-}
-
-static void inv_shift_row(uint8_t *state, uint8_t number)
-{
-  for (size_t row = 0; row < (size_t)number; row++)
-  {
-    uint8_t tmp = state[3];
-    for (int col = 3; col > 0; col--)
-    {
-      state[col] = state[col - 1];
-    }
-    state[0] = tmp;
-  }
-}
-
-static void inv_mix_columns(uint8_t *state)
-{
-  uint8_t column[4];
-  for (size_t row = 0; row < 4; row++)
-  {
-    for (size_t col = 0; col < 4; col++)
-    {
-      column[col] = state[(col * 4) + row];
-    }
-
-    inv_mix_column(column);
-
-    for (size_t col = 0; col < 4; col++)
-    {
-      state[(col * 4) + row] = column[col];
-    }
-  }
-}
-
-static void inv_mix_column(uint8_t *column)
-{
-  uint8_t column_copy[4];
-  for (size_t col = 0; col < 4; col++)
-  {
-    column_copy[col] = column[col];
-  }
-
-  column[0] = galois_mul(column_copy[0], IMPL_GF_MUL_14) ^
-              galois_mul(column_copy[3], IMPL_GF_MUL_9) ^
-              galois_mul(column_copy[2], IMPL_GF_MUL_13) ^
-              galois_mul(column_copy[1], IMPL_GF_MUL_11);
-  column[1] = galois_mul(column_copy[1], IMPL_GF_MUL_14) ^
-              galois_mul(column_copy[0], IMPL_GF_MUL_9) ^
-              galois_mul(column_copy[3], IMPL_GF_MUL_13) ^
-              galois_mul(column_copy[2], IMPL_GF_MUL_11);
-  column[2] = galois_mul(column_copy[2], IMPL_GF_MUL_14) ^
-              galois_mul(column_copy[1], IMPL_GF_MUL_9) ^
-              galois_mul(column_copy[0], IMPL_GF_MUL_13) ^
-              galois_mul(column_copy[3], IMPL_GF_MUL_11);
-  column[3] = galois_mul(column_copy[3], IMPL_GF_MUL_14) ^
-              galois_mul(column_copy[2], IMPL_GF_MUL_9) ^
-              galois_mul(column_copy[1], IMPL_GF_MUL_13) ^
-              galois_mul(column_copy[0], IMPL_GF_MUL_11);
-}
-
-static void round_decrypt(uint8_t *state, const uint8_t *round_key)
-{
-  inv_shift_rows(state);
-  inv_sub_bytes(state);
-  add_round_key(state, round_key);
-  inv_mix_columns(state);
-}
-
-static void cipher_decrypt_block(uint8_t *state, const uint8_t *expanded_key, uint16_t number_of_rounds)
-{
-  uint8_t round_key[IMPL_AES_BLOCK_SIZE];
-
-  create_round_key(expanded_key + (IMPL_AES_BLOCK_SIZE * number_of_rounds), round_key);
-  add_round_key(state, round_key);
-
-  for (uint16_t round = number_of_rounds - 1; round > 0; round--)
-  {
-    create_round_key(expanded_key + (IMPL_AES_BLOCK_SIZE * round), round_key);
-    round_decrypt(state, round_key);
-  }
-
-  create_round_key(expanded_key, round_key);
-  inv_shift_rows(state);
-  inv_sub_bytes(state);
-  add_round_key(state, round_key);
-}
-
-aes_error_t aes_decrypt(const uint8_t *input,
-                        uint8_t *output,
+aes_error_t aes_decrypt(const uint8_t *ciphertext,
+                        uint8_t *plaintext,
                         const uint8_t *key,
-                        aes_key_size_t size)
+                        aes_key_size_t key_size)
 {
-  uint16_t number_of_rounds;
-  switch (size)
+  if (!ciphertext || !plaintext || !key)
+    return AES_ERROR_UNSUPPORTED_KEY_SIZE;
+
+  uint16_t num_rounds;
+  switch (key_size)
   {
-  case AES_KEY_128:
-    number_of_rounds = IMPL_AES_ROUNDS_128;
+  case AES_KEY_SIZE_128:
+    num_rounds = AES_ROUNDS_128;
     break;
-  case AES_KEY_192:
-    number_of_rounds = IMPL_AES_ROUNDS_192;
+  case AES_KEY_SIZE_192:
+    num_rounds = AES_ROUNDS_192;
     break;
-  case AES_KEY_256:
-    number_of_rounds = IMPL_AES_ROUNDS_256;
+  case AES_KEY_SIZE_256:
+    num_rounds = AES_ROUNDS_256;
     break;
   default:
-    return AES_ERROR_UNKNOWN_KEYSIZE;
+    return AES_ERROR_UNSUPPORTED_KEY_SIZE;
   }
 
-  size_t expanded_key_size = (size_t)IMPL_AES_BLOCK_SIZE * ((size_t)number_of_rounds + 1);
-
+  size_t expanded_key_size = (size_t)AES_BLOCK_SIZE * (num_rounds + 1);
   uint8_t *expanded_key = (uint8_t *)malloc(expanded_key_size);
-  if (expanded_key == NULL)
-  {
+  if (!expanded_key)
     return AES_ERROR_MEMORY_ALLOCATION_FAILED;
-  }
 
-  /* Set the block values, for the block:
-   * a0,0 a0,1 a0,2 a0,3
-   * a1,0 a1,1 a1,2 a1,3
-   * a2,0 a2,1 a2,2 a2,3
-   * a3,0 a3,1 a3,2 a3,3
-   * the mapping order is a0,0 a1,0 a2,0 a3,0 a0,1 a1,1 ... a2,3 a3,3
-   */
+  aes_expand_key(expanded_key, key, key_size, expanded_key_size);
 
-  uint8_t block[IMPL_AES_BLOCK_SIZE];
+  aes_state_t state;
+  for (int r = 0; r < AES_STATE_DIM; ++r)
+    for (int c = 0; c < AES_STATE_DIM; ++c)
+      state[r][c] = ciphertext[r + AES_STATE_DIM * c];
 
-  for (uint8_t col = 0; col < 4; col++)
-  {
-    for (uint8_t row = 0; row < 4; row++)
-    {
-      block[(col + (row * 4))] = input[(col * 4) + row];
-    }
-  }
+  cipher_decrypt_block(&state, expanded_key, num_rounds);
 
-  // expand the key into an 176, 208, 240 bytes key
-  expand_key(expanded_key, key, size, expanded_key_size);
+  for (int r = 0; r < AES_STATE_DIM; ++r)
+    for (int c = 0; c < AES_STATE_DIM; ++c)
+      plaintext[r + AES_STATE_DIM * c] = state[r][c];
 
-  // decrypt the block using the expanded_key
-  cipher_decrypt_block(block, expanded_key, number_of_rounds);
-
-  // unmap the block again into the output
-  for (size_t col = 0; col < 4; col++)
-  {
-    for (size_t row = 0; row < 4; row++)
-    {
-      output[(col * 4) + row] = block[(col + (row * 4))];
-    }
-  }
-
-  // de-allocate memory for expanded_key (safely)
-  safe_zero(expanded_key, expanded_key_size);
+  secure_zero_memory(expanded_key, expanded_key_size);
   free(expanded_key);
-  expanded_key = NULL;
-
   return AES_SUCCESS;
+}
+
+const char *aes_error_to_string(aes_error_t error_code)
+{
+  switch (error_code)
+  {
+  case AES_SUCCESS:
+    return "Success";
+  case AES_ERROR_UNSUPPORTED_KEY_SIZE:
+    return "Unsupported key size";
+  case AES_ERROR_MEMORY_ALLOCATION_FAILED:
+    return "Memory allocation failed";
+  default:
+    return "An unknown error occurred";
+  }
 }
