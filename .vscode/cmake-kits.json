@@ -1,0 +1,16 @@
+[
+  {
+    "name": "GCC",
+    "toolchainFile": "${workspaceFolder}/toolchain-gcc.cmake",
+    "preferredGenerator": {
+      "name": "MinGW Makefiles"
+    }
+  },
+  {
+    "name": "Clang",
+    "toolchainFile": "${workspaceFolder}/toolchain-clang.cmake",
+    "preferredGenerator": {
+      "name": "MinGW Makefiles"
+    }
+  }
+]

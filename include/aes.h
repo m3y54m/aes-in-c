@@ -11,8 +11,8 @@
 #ifndef AES_H
 #define AES_H
 
-#include <stdint.h>
 #include <stddef.h>
+#include <stdint.h>
 
 /* ============================================================================
  * Public Compile-Time Constants
@@ -43,9 +43,9 @@ typedef uint8_t aes_state_t[AES_STATE_DIM][AES_STATE_DIM];
  */
 typedef enum
 {
-  AES_SUCCESS = 0,                    /**< The operation completed successfully. */
-  AES_ERROR_UNSUPPORTED_KEY_SIZE,     /**< The provided key size is not supported. */
-  AES_ERROR_MEMORY_ALLOCATION_FAILED, /**< A memory allocation call failed. */
+    AES_SUCCESS = 0,                    /**< The operation completed successfully. */
+    AES_ERROR_UNSUPPORTED_KEY_SIZE,     /**< The provided key size is not supported. */
+    AES_ERROR_MEMORY_ALLOCATION_FAILED, /**< A memory allocation call failed. */
 } aes_error_t;
 
 /**
@@ -53,9 +53,9 @@ typedef enum
  */
 typedef enum
 {
-  AES_KEY_SIZE_128 = 16, /**< For 128-bit keys (16 bytes). */
-  AES_KEY_SIZE_192 = 24, /**< For 192-bit keys (24 bytes). */
-  AES_KEY_SIZE_256 = 32  /**< For 256-bit keys (32 bytes). */
+    AES_KEY_SIZE_128 = 16, /**< For 128-bit keys (16 bytes). */
+    AES_KEY_SIZE_192 = 24, /**< For 192-bit keys (24 bytes). */
+    AES_KEY_SIZE_256 = 32  /**< For 256-bit keys (32 bytes). */
 } aes_key_size_t;
 
 /* ============================================================================
@@ -71,7 +71,7 @@ typedef enum
  * @param[in]  key_size The size of the key (use AES_KEY_SIZE_128, AES_KEY_SIZE_192, or AES_KEY_SIZE_256).
  * @param[in]  expanded_key_size The total size of the expanded_key buffer.
  */
-void aes_expand_key(uint8_t *expanded_key, const uint8_t *key, aes_key_size_t key_size, size_t expanded_key_size);
+void aes_expand_key(uint8_t* expanded_key, const uint8_t* key, aes_key_size_t key_size, size_t expanded_key_size);
 
 /**
  * @brief Encrypts a single 16-byte block of data using AES.
@@ -82,7 +82,7 @@ void aes_expand_key(uint8_t *expanded_key, const uint8_t *key, aes_key_size_t ke
  * @param[in]  key_size The size of the key (128, 192, or 256 bits).
  * @return AES_SUCCESS on success, or an appropriate aes_error_t on failure.
  */
-aes_error_t aes_encrypt(const uint8_t *plaintext, uint8_t *ciphertext, const uint8_t *key, aes_key_size_t key_size);
+aes_error_t aes_encrypt(const uint8_t* plaintext, uint8_t* ciphertext, const uint8_t* key, aes_key_size_t key_size);
 
 /**
  * @brief Decrypts a single 16-byte block of data using AES.
@@ -93,7 +93,7 @@ aes_error_t aes_encrypt(const uint8_t *plaintext, uint8_t *ciphertext, const uin
  * @param[in]  key_size The size of the key (128, 192, or 256 bits).
  * @return AES_SUCCESS on success, or an appropriate aes_error_t on failure.
  */
-aes_error_t aes_decrypt(const uint8_t *ciphertext, uint8_t *plaintext, const uint8_t *key, aes_key_size_t key_size);
+aes_error_t aes_decrypt(const uint8_t* ciphertext, uint8_t* plaintext, const uint8_t* key, aes_key_size_t key_size);
 
 /**
  * @brief Converts an AES error code to a human-readable string.
@@ -101,6 +101,6 @@ aes_error_t aes_decrypt(const uint8_t *ciphertext, uint8_t *plaintext, const uin
  * @param[in] error_code The error code to convert.
  * @return A constant string describing the error.
  */
-const char *aes_error_to_string(aes_error_t error_code);
+const char* aes_error_to_string(aes_error_t error_code);
 
-#endif /* AES_H */
+#endif // AES_H

@@ -1,2 +1,9 @@
-.vscode/
+# Ignore the build directory
 build/
+
+# Ignore the .vscode directory by default...
+.vscode/*
+
+# ...but do NOT ignore the cmake-kits.json file and the parent folder
+!.vscode/
+!/.vscode/cmake-kits.json
