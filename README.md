@@ -24,10 +24,6 @@ I revised the article, added some comprehensive images, and rewrote it in Markdo
 └── toolchain-gcc.cmake
 ```
 
-This is a C project that implements the **Advanced Encryption Standard (AES)** algorithm. The project is well-structured and includes source code, tests, documentation, and configuration files for building and continuous integration.
-
-### Project Structure
-
 Here is a breakdown of the project's directory structure and the purpose of each file:
 
 * **`/`**
@@ -1558,4 +1554,5 @@ This is the end of our Advanced Encryption Standard Implementation, all
 that is left is to take our finished AES functions and use them inside a
 *block cipher modes of operation* to be able to encrypt/decrypt messages
 of any size.
+
 
