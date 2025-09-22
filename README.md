@@ -7,10 +7,49 @@ I revised the article, added some comprehensive images, and rewrote it in Markdo
 > [!CAUTION]
 > Please note that the code and materials provided in this repository are intended for EDUCATIONAL purposes only and is NOT SAFE to be used in production.
 
+## Project structure
+
+```
+.
+├── .vscode
+│   └── cmake-kits.json
+├── CMakeLists.txt
+├── include
+│   └── aes.h
+├── src
+│   └── aes.c
+├── tests
+│   └── test_aes.c
+├── toolchain-clang.cmake
+└── toolchain-gcc.cmake
+```
+
+This is a C project that implements the **Advanced Encryption Standard (AES)** algorithm. The project is well-structured and includes source code, tests, documentation, and configuration files for building and continuous integration.
+
+### Project Structure
+
+Here is a breakdown of the project's directory structure and the purpose of each file:
+
+* **`/`**
+    * **`CMakeLists.txt`**: The main configuration file for the CMake build system. It defines the project's name, language, compiler options, and targets (libraries and executables).
+    * **`toolchain-clang.cmake`**: A CMake toolchain file for configuring the project to be built with the Clang compiler.
+    * **`toolchain-gcc.cmake`**: A CMake toolchain file for configuring the project to be built with the GCC compiler.
+
+* **`/.vscode/`**
+    * **`cmake-kits.json`**: A configuration file for the Visual Studio Code editor that defines the available CMake kits (compilers and toolchains) for building the project.
+
+* **`/include/`**
+    * **`aes.h`**: The main header file for the AES library. It defines the public API, including function prototypes, constants, and data types for the encryption and decryption functions.
+
+* **`/src/`**
+    * **`aes.c`**: The main source file for the AES library. It contains the implementation of the AES encryption and decryption algorithms, including all the necessary helper functions and lookup tables.
+
+* **`/tests/`**
+    * **`test_aes.c`**: The source file for the unit tests. It uses the CTest framework to verify the correctness of the AES implementation by comparing the output of the encryption and decryption functions against known test vectors from the FIPS-197 standard.
+
 ## Build and run the tests
 
-This project now uses CMake as the canonical build system. The old
-`Makefile` has been retired; use the following commands to configure,
+This project now uses CMake as the build system. Use the following commands to configure,
 build and run the tests.
 
 ```
@@ -1519,3 +1558,4 @@ This is the end of our Advanced Encryption Standard Implementation, all
 that is left is to take our finished AES functions and use them inside a
 *block cipher modes of operation* to be able to encrypt/decrypt messages
 of any size.
+
